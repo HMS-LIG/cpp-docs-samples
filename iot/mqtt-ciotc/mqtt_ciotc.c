@@ -30,6 +30,8 @@
 
 #define TRACE 1 /* Set to 1 to enable tracing */
 
+#define TOPIC_FMT_STR "/devices/%s/events"
+
 struct {
   char* address;
   enum { clientid_maxlen = 256, clientid_size };
@@ -40,7 +42,8 @@ struct {
   char* region;
   char* registryid;
   char* rootpath;
-  char* topic;
+  enum { topic_maxlen = 256, topic_size };
+  char topic[topic_size];
   char* payload;
 } opts = {
   .address = "ssl://mqtt.googleapis.com:8883",
@@ -51,7 +54,7 @@ struct {
   .region = "{your-region-id}",
   .registryid = "{your-registry-id}",
   .rootpath = "roots.pem",
-  .topic = "/devices/{your-device-id}/events",
+  .topic = "", // Automatically calculated from deviceid and TOPIC_FMT_STR
   .payload = "Hello world!"
 };
 
@@ -222,6 +225,16 @@ bool GetOpts(int argc, char** argv) {
     if (TRACE) {
       printf("New client id constructed:\n");
       printf("%s\n", opts.clientid);
+    }
+
+    n = snprintf(opts.topic, sizeof(opts.topic), TOPIC_FMT_STR, opts.deviceid);
+    if (n < 0 || (n > topic_maxlen)) {
+      if (n < 0) {
+        printf("Encoding error!\n");
+      } else {
+        printf("Error, buffer for storing topic was too small.\n");
+      }
+      return false;
     }
 
     return true; // Caller must free opts.clientid
